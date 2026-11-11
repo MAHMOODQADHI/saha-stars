@@ -767,8 +767,11 @@ const VKEY={start:'start',goal:'goal',goalEq:'goal',goalLead:'goal',goalMore:'go
   shot:'shot',lob:'shot',curl:'shot',save:'save',miss:'miss',wallHit:'miss',tackle:'tackle',skill:'skill',dribble:'skill',foul:'foul',
   yellow:'card',red:'card',red2:'card',penalty:'penalty',half:'half',endW:'win',endD:'endOther',endL:'endOther'};
 // recordings the player sent in, published with the game; clips recorded in the game take priority
-const VBUILT={}; // e.g. {goal:['voice/goal1.mp4'],shot:['voice/shot1.mp4']}
-function vBuilt(slot){return (VBUILT[slot]||[]).map((u,i)=>({id:'built-'+slot+i,url:u}));}
+const VBUILT={shot:['voice/shot1.mp4'],goal:['voice/goal1.mp4','voice/goal2.mp4','voice/shot1.mp4'],goalOpp:['voice/goal1.mp4','voice/shot1.mp4']};
+// clips missing from this copy (e.g. the public repo ships without voice/) fall back to the normal commentary voice
+const vMissing=new Set();
+function vBuilt(slot){return (VBUILT[slot]||[]).filter(u=>!vMissing.has(u)).map((u,i)=>({id:'built-'+slot+i,url:u}));}
+function vProbe(){[...new Set([].concat(...Object.values(VBUILT)))].forEach(u=>{try{fetch(u,{method:'HEAD'}).then(r=>{if(r.status===404){vMissing.add(u);renderVoice();}}).catch(()=>{});}catch(e){}});}
 const VCLIPS={};let vdb=null,vAudio=null,vRec=null,vFileSlot=null,vNoStore=false;const vLast={};
 function vOpen(){return new Promise(res=>{try{const r=indexedDB.open('njoom-voice',1);r.onupgradeneeded=()=>r.result.createObjectStore('clips',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null);}catch(e){res(null);}});}
 async function vLoad(){vdb=await vOpen();if(!vdb){vNoStore=true;renderVoice();return;}
@@ -786,7 +789,7 @@ function vStop(){if(vAudio){try{vAudio.pause();}catch(e){}vAudio=null;}}
 const vBuf={};
 function vDecode(url){
   if(vBuf[url]||!AC)return Promise.resolve(vBuf[url]||null);
-  return fetch(url).then(r=>r.arrayBuffer()).then(ab=>new Promise(res=>{try{const p=AC.decodeAudioData(ab,b=>{vBuf[url]=b;res(b);},()=>res(null));if(p&&p.catch)p.catch(()=>res(null));}catch(e){res(null);}})).catch(()=>null);
+  return fetch(url).then(r=>{if(r.status===404){vMissing.add(url);throw new Error('missing');}return r.arrayBuffer();}).then(ab=>new Promise(res=>{try{const p=AC.decodeAudioData(ab,b=>{vBuf[url]=b;res(b);},()=>res(null));if(p&&p.catch)p.catch(()=>res(null));}catch(e){res(null);}})).catch(()=>null);
 }
 function vWarm(){if(!AC)return;Object.keys(VBUILT).forEach(k=>VBUILT[k].forEach(vDecode));Object.values(VCLIPS).forEach(a=>a.forEach(c=>vDecode(c.url)));}
 function vPlayUrl(url,inGame){
@@ -1803,7 +1806,7 @@ function frame(now){
 }
 $('langBtn').onclick=()=>setLang({ar:'en',en:'tr',tr:'ar'}[S.lang]||'en');
 applyLang();
-showMenu();vLoad();
+showMenu();vLoad();vProbe();
 requestAnimationFrame(frame);
 })();
 </script>

@@ -10,3 +10,6 @@ android/build/
 
 # Personal voice recordings
 voice/
+
+# Local editor/assistant settings
+.claude/
