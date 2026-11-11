@@ -1,0 +1,12 @@
+# Signing key: never commit (anyone holding it can sign updates as this app)
+*.jks
+*.keystore
+keystore-password.txt
+
+# Build output
+android/build/
+*.apk
+*.idsig
+
+# Personal voice recordings
+voice/
